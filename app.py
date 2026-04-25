@@ -69,7 +69,6 @@ with tabs[2]:
     if 'data_ready' in st.session_state:
         st.header("📊 التقرير التحليلي النهائي")
         
-        # منطق الشرح والتسعير
         explanations = {
             "EXW": "المشتري يتحمل كافة التكاليف والمخاطر من باب مصنع البائع.",
             "FOB": "البائع يسلم البضاعة على ظهر السفينة، ومن هنا تنتقل المخاطر للمشتري.",
@@ -77,13 +76,24 @@ with tabs[2]:
             "DDP": "البائع يتحمل كل شيء حتى تسليم البضاعة في مخازن المشتري شاملة الرسوم الجمركية."
         }
         
-        # حسابات التسعير
+        # منطق التسعير المطور
         shipping_fees = 800 if transport_mode == "بحري" else 1500
-        insurance = base_price * 0.05
-        customs = base_price * 0.15 if incoterm == "DDP" else 0
-        total_cost = base_price + (shipping_fees if incoterm != "EXW" else 0) + (insurance if incoterm in ["CIF", "DDP"] else 0) + customs
+        insurance_fee = base_price * 0.05
+        customs_fee = base_price * 0.15
+        
+        if incoterm == "EXW":
+            total_cost = base_price
+            ship_status, ins_status, cust_status = "على المشتري", "على المشتري", "على المشتري"
+        elif incoterm == "FOB":
+            total_cost = base_price + 200 
+            ship_status, ins_status, cust_status = "على المشتري (من الميناء)", "على المشتري", "على المشتري"
+        elif incoterm == "CIF":
+            total_cost = base_price + shipping_fees + insurance_fee
+            ship_status, ins_status, cust_status = f"مدرج ({shipping_fees} $)", f"مدرج ({insurance_fee} $)", "على المشتري"
+        else: # DDP
+            total_cost = base_price + shipping_fees + insurance_fee + customs_fee
+            ship_status, ins_status, cust_status = f"مدرج ({shipping_fees} $)", f"مدرج ({insurance_fee} $)", f"مدرج ({customs_fee} $)"
 
-        # عرض النتائج في بطاقات
         col_res1, col_res2, col_res3 = st.columns(3)
         col_res1.metric("التكلفة الإجمالية", f"{total_cost:,.2f} $")
         col_res2.metric("البصمة الكربونية", f"{estimated_days * 0.4} CO2e")
@@ -94,28 +104,27 @@ with tabs[2]:
         <h3>🔍 شرح القاعدة المختارة ({incoterm}):</h3>
         <p>{explanations[incoterm]}</p>
         <hr>
-        <h3>💰 تفاصيل عملية التسعير:</h3>
+        <h3>💰 تفاصيل عملية التسعير (التحليل المالي):</h3>
         <ul>
-            <li>السعر الأساسي: {base_price} $</li>
-            <li>مصاريف الشحن: {"0 (على المشتري)" if incoterm == "EXW" else f"{shipping_fees} $"}</li>
-            <li>التأمين: {"مدرج" if incoterm in ["CIF", "DDP"] else "غير مدرج"}</li>
-            <li>الرسوم الجمركية: {"شاملة" if incoterm == "DDP" else "غير شاملة"}</li>
+            <li><b>السعر الأساسي للسلعة:</b> {base_price:,.2f} $</li>
+            <li><b>مصاريف الشحن الدولي:</b> {ship_status}</li>
+            <li><b>تأمين البضاعة:</b> {ins_status}</li>
+            <li><b>الرسوم الجمركية:</b> {cust_status}</li>
         </ul>
-        <p><b>النتيجة كـ {role}:</b> أنت تتحمل مسؤولية التكاليف والمخاطر بناءً على اتفاق {incoterm}.</p>
+        <p style='color: #1E3A8A; font-weight: bold; font-size: 18px;'>النتيجة النهائية للمصاريف كـ {role}: {total_cost:,.2f} $</p>
         </div>
         """, unsafe_allow_html=True)
         
         st.write("---")
-        # التقييم بالنجوم
         st.subheader("⭐ تقييمك للمنصة")
         star_rating = st.feedback("stars")
         if star_rating is not None:
-            st.write(f"شكراً لتقييمك بـ {star_rating + 1} نجوم!")
+            st.success(f"شكراً لتقييمك بـ {star_rating + 1} نجوم!")
         
         st.write("---")
         st.markdown("<h4 style='text-align: center;'>شكراً لزيارتكم!</h4>", unsafe_allow_html=True)
         
-        report_text = f"تقرير {origin}-{destination}\nالقاعدة: {incoterm}\nالتكلفة: {total_cost} $"
-        st.download_button("📥 تحميل التقرير", report_text, file_name="Incoterms_Report.txt")
+        report_text = f"تقرير رحلة {origin}-{destination}\nالقاعدة: {incoterm}\nالتكلفة الإجمالية: {total_cost} $"
+        st.download_button("📥 تحميل التقرير التفصيلي", report_text, file_name="Incoterms_Report.txt")
     else:
-        st.warning("يرجى إدخال البيانات في الصفحة الثانية أولاً.")
+        st.warning("يرجى إدخال البيانات في الصفحة الثانية أولاً ثم الضغط على 'عرض التقرير'.")
